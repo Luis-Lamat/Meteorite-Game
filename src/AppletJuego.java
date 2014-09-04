@@ -34,9 +34,12 @@ public class AppletJuego extends Applet implements Runnable, KeyListener,
     private int idX;
     private int idY;
     private int iVidas;
+    private int iScore;
+    private int iAsteroidesCaidos;
     private boolean bClick;
     private LinkedList lstAsteroides;
-    private AudioClip aucSonidoColision;        // Objeto AudioClip sonido Raton
+    private AudioClip aucSonidoColision;  // Objeto AudioClip sonido colision
+    private AudioClip aucSonidoFlyby;     // Objeto AudioClip sonido flyby
     private Planeta pltTierra;         // Objeto de la clase Planeta
     /* objetos para manejar el buffer del Applet y este no parpadee */
     private Image    imaImagenApplet;   // Imagen a proyectar en Applet	
@@ -60,6 +63,13 @@ public class AppletJuego extends Applet implements Runnable, KeyListener,
 	URL urlImagenTierra = this.getClass().getResource("earth.gif");
         URL urlImagenAsteroide = this.getClass().getResource("asteroid.gif");
         
+        // Inicializa las vidas y el Score
+        iVidas = 5;
+        iScore = 0;
+        
+        // No se han caido asteroides
+        iAsteroidesCaidos = 0;
+        
         // se crea el objeto elefante 
 	pltTierra = new Planeta(posX,posY,
                 Toolkit.getDefaultToolkit().getImage(urlImagenTierra));
@@ -77,18 +87,23 @@ public class AppletJuego extends Applet implements Runnable, KeyListener,
             
             // poniedno posicion aleatoria fuera de la pantalla
             posX = (int) (Math.random() * (getWidth() - pltAsteroide.getAncho()));
-            posY = (getWidth() - pltAsteroide.getAlto());
+            posY = (int) (0 - pltAsteroide.getAlto() - Math.random() * 500);
             pltAsteroide.setX(posX);
             pltAsteroide.setY(posY);
-            pltAsteroide.setVelocidad(11 - (iVidas * 2));
+            pltAsteroide.setVelocidad(11 - (iVidas * 2) + 1);
+            
+            lstAsteroides.add(pltAsteroide);
         }
         
-        // Inicializa las vidas en 4
-        iVidas = 5;
+
            
 	//creo el sonido de la colision
-	URL urlSonidoChoque = this.getClass().getResource("explosion.wav");
+	URL urlSonidoChoque = this.getClass().getResource("success.wav");
         aucSonidoColision = getAudioClip (urlSonidoChoque);
+        
+        //cre el sonido del asteroide pasando abajo de la pantalla
+        URL urlSonidoFlyby = this.getClass().getResource("flyby.wav");
+        aucSonidoFlyby = getAudioClip (urlSonidoFlyby);
 
         
         /* se le añade la opcion al applet de ser escuchado por los eventos
@@ -162,8 +177,17 @@ public class AppletJuego extends Applet implements Runnable, KeyListener,
         for (Object lstAsteroide : lstAsteroides){
             Planeta pltAsteroide = (Planeta) lstAsteroide;
             
+            // se actualiza su velicidad
+            pltAsteroide.setVelocidad(11 - (iVidas * 2) + 1);
+            
             // se mueve hacia abajo
             pltAsteroide.abajo();
+        }
+        
+        if (iAsteroidesCaidos == 10){
+            iAsteroidesCaidos = 0;
+            iVidas -= 1;
+            iScore -= 20;
         }
         
 
@@ -200,16 +224,28 @@ public class AppletJuego extends Applet implements Runnable, KeyListener,
         }
 	
         
-//        // Checa si ambos objetos colisionan
-//        if (pltTierra.colisiona(pltAsteroide)){
-//            reposiciona();
-//            iVidas--;
-//            pltAsteroide.setVelocidad(10 - (iVidas * 2));
-//            
-//            //Solo pone el sonido cuando el juego esta activo
-//            if (iVidas >= 0) 
-//                aucSonidoColision.play();
-//        }
+        for (Object lstAsteroide : lstAsteroides){
+            Planeta pltAsteroide = (Planeta) lstAsteroide;
+            
+            // Checa si ambos objetos colisionan solo si el planeta se encuentra
+            // debajo del asteroide
+            if ((pltAsteroide.getY() + pltAsteroide.getAlto() - 20) < pltTierra.getY()){
+                if (pltTierra.colisiona(pltAsteroide)){
+                    reposiciona(pltAsteroide);
+                    iScore += 100;
+                    aucSonidoColision.play();
+                }               
+            }
+            
+            // si el asteroide se sale de la pantalla
+            if (pltAsteroide.getY() > getHeight()){
+                aucSonidoFlyby.play();
+                reposiciona(pltAsteroide);
+                iAsteroidesCaidos++;
+            }
+        }
+        
+
     }
     
 
@@ -221,8 +257,10 @@ public class AppletJuego extends Applet implements Runnable, KeyListener,
      */
 
     public void reposiciona(Planeta pltAsteroide) {
-        pltAsteroide.setX((int) (Math.random() * (getWidth() - pltAsteroide.getAncho())));
-        pltAsteroide.setY(getWidth() - pltAsteroide.getAlto());
+        pltAsteroide.setX((int) (Math.random() * 
+                                (getWidth() - pltAsteroide.getAncho())));
+        pltAsteroide.setY((int) (0 - pltAsteroide.getAlto() - 
+                                 Math.random() * 500));
     }
     
     /**
@@ -308,18 +346,18 @@ public class AppletJuego extends Applet implements Runnable, KeyListener,
         if (iVidas > 0){
             // si la imagen ya se cargo
             if (pltTierra != null && lstAsteroides.size() != 0) {
-                    //Dibuja la imagen de la tierra en la posicion actualizada
-                    g.drawImage(pltTierra.getImagen(), pltTierra.getX(),
-                            pltTierra.getY(), this);
-                    
-                    // Dibuja la coleccion de asteroides
-                    for (Object lstAsteroide : lstAsteroides){
-                        Planeta pltAsteroide = (Planeta) lstAsteroide;
-                        g.drawImage(pltAsteroide.getImagen(), pltAsteroide.getX(),
-                            pltAsteroide.getY(), this); 
-                    }
-                   
+                //Dibuja la imagen de la tierra en la posicion actualizada
+                g.drawImage(pltTierra.getImagen(), pltTierra.getX(),
+                        pltTierra.getY(), this);
 
+                // Dibuja la coleccion de asteroides
+                for (Object lstAsteroide : lstAsteroides){
+                    Planeta pltAsteroide = (Planeta) lstAsteroide;
+                    g.drawImage(pltAsteroide.getImagen(), pltAsteroide.getX(),
+                        pltAsteroide.getY(), this); 
+                }
+
+                
             } // sino se ha cargado se dibuja un mensaje 
             else {
                     //Da un mensaje mientras se carga el dibujo	
@@ -327,16 +365,10 @@ public class AppletJuego extends Applet implements Runnable, KeyListener,
             }
 
             g.setColor(Color.WHITE);
-            g.drawString("X drag: " + String.valueOf(iMouseX), 15, 20);
-            g.drawString("Y drag: " + String.valueOf(iMouseY), 15, 40);
-            g.drawString("Clicked: " + String.valueOf(bClick), 15, 60);
-            g.drawString("Posicion Planeta: X = " + 
-                    String.valueOf(pltTierra.getX()) + " | Y = " +
-                    String.valueOf(pltTierra.getY()), 15, 80);
-            g.drawString("Diferenciales: dX = " + 
-                    String.valueOf(idX) + " | dY = " +
-                    String.valueOf(idY), 15, 100);
-            g.drawString("Vidas: " + String.valueOf(iVidas), 15, 120);
+            g.drawString("Vidas: " + String.valueOf(iVidas), 15, 20);
+            g.drawString("Score: " + String.valueOf(iScore), 15, 40);
+            g.drawString("Asteroides Acumulados: " + 
+                         String.valueOf(iAsteroidesCaidos), 15, 60);
         }
         else {
             g.setColor(Color.WHITE);
