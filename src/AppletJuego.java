@@ -29,16 +29,15 @@ public class AppletJuego extends Applet implements Runnable, KeyListener,
     // Se declaran las variables y objetos
     // direccion en la que se mueve el elefante
     // 1-arriba,2-abajo,3-izquierda y 4-derecha
-    private int iDireccion;
     private int iMouseX;
     private int iMouseY;
     private int idX;
     private int idY;
     private int iVidas;
     private boolean bClick;
+    private LinkedList lstAsteroides;
     private AudioClip aucSonidoColision;        // Objeto AudioClip sonido Raton
     private Planeta pltTierra;         // Objeto de la clase Planeta
-    private Planeta pltAsteroide;      // Objeto de la clase Planeta
     /* objetos para manejar el buffer del Applet y este no parpadee */
     private Image    imaImagenApplet;   // Imagen a proyectar en Applet	
     private Graphics graGraficaApplet;  // Objeto grafico de la Imagen
@@ -53,10 +52,7 @@ public class AppletJuego extends Applet implements Runnable, KeyListener,
     public void init() {
         // hago el applet de un tamaño 500,500
         setSize(1200,680);
-        
-        // posicion en 4 para que el elefante se mueva a la derecha
-    	iDireccion = 4;
-        
+
         // se posicion la Tierra en alguna parte al azar del cuadrante 
         // superior izquierdo
 	int posX = (int) (Math.random() *(getWidth() / 4));    
@@ -68,26 +64,33 @@ public class AppletJuego extends Applet implements Runnable, KeyListener,
 	pltTierra = new Planeta(posX,posY,
                 Toolkit.getDefaultToolkit().getImage(urlImagenTierra));
         
-        // se posicion la Tierra en alguna parte al azar del cuadrante 
-        // inferior derecho
-	posX = (int) ((getHeight() / 2) + Math.random() *(getHeight() / 4));    
-        posY = (int) ((getHeight() / 2) + Math.random() *(getHeight() / 4));
-        pltAsteroide = new Planeta(posX,posY,
+        // coleccion de asteroides
+        lstAsteroides = new LinkedList();
+        
+        // declarando la cantidad de asteroides total
+        int iCANT_ASTEROIDES = 10;
+        
+        // creando la coleccion de asteroides furea de la pantalla
+        for (int iI = 0; iI < iCANT_ASTEROIDES; iI++){
+            Planeta pltAsteroide = new Planeta(0,0, 
                 Toolkit.getDefaultToolkit().getImage(urlImagenAsteroide));
+            
+            // poniedno posicion aleatoria fuera de la pantalla
+            posX = (int) (Math.random() * (getWidth() - pltAsteroide.getAncho()));
+            posY = (getWidth() - pltAsteroide.getAlto());
+            pltAsteroide.setX(posX);
+            pltAsteroide.setY(posY);
+            pltAsteroide.setVelocidad(11 - (iVidas * 2));
+        }
         
         // Inicializa las vidas en 4
-        iVidas = 4;
-        
-        // inicializa velocidad del asteroide
-        pltAsteroide.setVelocidad(10 - (iVidas * 2));
-        
-        
+        iVidas = 5;
+           
 	//creo el sonido de la colision
 	URL urlSonidoChoque = this.getClass().getResource("explosion.wav");
         aucSonidoColision = getAudioClip (urlSonidoChoque);
 
-        // se define el background en color amarillo
-	setBackground (Color.yellow);
+        
         /* se le añade la opcion al applet de ser escuchado por los eventos
            del teclado  */
 	addKeyListener(this);
@@ -155,19 +158,15 @@ public class AppletJuego extends Applet implements Runnable, KeyListener,
             pltTierra.setY(iMouseY - idY);
         }
         
-        // el raton sigue al elefante
-        if (pltAsteroide.getX() < pltTierra.getX()) {
-            pltAsteroide.derecha();
-        }
-        else {
-            pltAsteroide.izquierda();
-        }
-        if (pltAsteroide.getY() < pltTierra.getY()) {
+        // Itera en la coleccion de asteroides para moverlos
+        for (Object lstAsteroide : lstAsteroides){
+            Planeta pltAsteroide = (Planeta) lstAsteroide;
+            
+            // se mueve hacia abajo
             pltAsteroide.abajo();
         }
-        else {
-            pltAsteroide.arriba();
-        } 
+        
+
     }
 	
     /**
@@ -185,50 +184,45 @@ public class AppletJuego extends Applet implements Runnable, KeyListener,
             pltTierra.setY(0);     // se reseta la Y
         }
 
-        // si esta pasando el limite superior
+        // si esta pasando el limite inferior
         if(pltTierra.getY() + pltTierra.getAlto() > getHeight()) {
             pltTierra.setY(getHeight() - pltTierra.getAlto()); // se reseta la Y
         }
 
-        // si esta pasando el limite superior
+        // si esta pasando el limite izquierdo
         if(pltTierra.getX() < 0) {
             pltTierra.setX(0);       // se reseta la X
         }
         
-        // si esta pasando el limite superior
+        // si esta pasando el limite derecho
         if(pltTierra.getX() + pltTierra.getAncho() > getWidth()) { 
             pltTierra.setX(getWidth() - pltTierra.getAncho()); // se reseta la X
         }
 	
-        // Checa si ambos objetos colisionan
-        if (pltTierra.colisiona(pltAsteroide)){
-            bClick = false;
-            reposiciona();
-            iVidas--;
-            pltAsteroide.setVelocidad(10 - (iVidas * 2));
-            
-            //Solo pone el sonido cuando el juego esta activo
-            if (iVidas >= 0) 
-                aucSonidoColision.play();
-        }
+        
+//        // Checa si ambos objetos colisionan
+//        if (pltTierra.colisiona(pltAsteroide)){
+//            reposiciona();
+//            iVidas--;
+//            pltAsteroide.setVelocidad(10 - (iVidas * 2));
+//            
+//            //Solo pone el sonido cuando el juego esta activo
+//            if (iVidas >= 0) 
+//                aucSonidoColision.play();
+//        }
     }
     
 
     /**
      * reposiciona 
      * 
-     * cambia las posiciones de la Tierra y del Asteroide , el elefante
-     * debe posicionarse en el cuadrante inferior derecho y 
-     * el raton en el cuadrante superior izquierdo
+     * cambia las posiciones de de los Asteroides fuera de la pantalla
      * 
      */
 
-    public void reposiciona() {
-        pltAsteroide.setX((int) (Math.random() *(getWidth() / 4)));
-        pltAsteroide.setY((int) (Math.random() *(getHeight() / 4)));
-        
-        pltTierra.setX((int) ((getWidth() / 2) + Math.random() *(getWidth() / 4)));
-        pltTierra.setY((int) ((getHeight() / 2) + Math.random() *(getHeight() / 4)));
+    public void reposiciona(Planeta pltAsteroide) {
+        pltAsteroide.setX((int) (Math.random() * (getWidth() - pltAsteroide.getAncho())));
+        pltAsteroide.setY(getWidth() - pltAsteroide.getAlto());
     }
     
     /**
@@ -275,22 +269,6 @@ public class AppletJuego extends Applet implements Runnable, KeyListener,
      * 
      */
     public void keyPressed(KeyEvent keyEvent) {
-        // si presiono flecha para arriba
-        if(keyEvent.getKeyCode() == KeyEvent.VK_UP) {    
-                iDireccion = 1;  // cambio la dirección arriba
-        }
-        // si presiono flecha para abajo
-        else if(keyEvent.getKeyCode() == KeyEvent.VK_DOWN) {    
-                iDireccion = 2;   // cambio la direccion para abajo
-        }
-        // si presiono flecha a la izquierda
-        else if(keyEvent.getKeyCode() == KeyEvent.VK_LEFT) {    
-                iDireccion = 3;   // cambio la direccion a la izquierda
-        }
-        // si presiono flecha a la derecha
-        else if(keyEvent.getKeyCode() == KeyEvent.VK_RIGHT){    
-                iDireccion = 4;   // cambio la direccion a la derecha
-        }
     }
     
     /**
@@ -329,12 +307,18 @@ public class AppletJuego extends Applet implements Runnable, KeyListener,
     public void paint(Graphics g) {
         if (iVidas > 0){
             // si la imagen ya se cargo
-            if (pltTierra != null && pltAsteroide != null) {
+            if (pltTierra != null && lstAsteroides.size() != 0) {
                     //Dibuja la imagen de la tierra en la posicion actualizada
                     g.drawImage(pltTierra.getImagen(), pltTierra.getX(),
                             pltTierra.getY(), this);
-                    g.drawImage(pltAsteroide.getImagen(), pltAsteroide.getX(),
-                            pltAsteroide.getY(), this);
+                    
+                    // Dibuja la coleccion de asteroides
+                    for (Object lstAsteroide : lstAsteroides){
+                        Planeta pltAsteroide = (Planeta) lstAsteroide;
+                        g.drawImage(pltAsteroide.getImagen(), pltAsteroide.getX(),
+                            pltAsteroide.getY(), this); 
+                    }
+                   
 
             } // sino se ha cargado se dibuja un mensaje 
             else {
